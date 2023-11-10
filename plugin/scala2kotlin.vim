@@ -11,6 +11,9 @@
 
 command	ScalaConvert :call scala2kotlin#Convert()
 
+command ScalaNumInteger :.substitute /\v(".{-}") (.{-}) (".{-}")/ℤ (\1).\2(ℤ (\3))/
+
+
 50amenu Plugin.Convert.Scala\ Convert<tab>ScalaConvert :ScalaConvert<CR>
 
 " vim: set textwidth=78 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
