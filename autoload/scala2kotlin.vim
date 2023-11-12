@@ -120,6 +120,7 @@ endfunction "scala2kotlin#Convert_Function_Test
 function! scala2kotlin#Convert_Function_Name()
    global /\<fun\> `/ substitute /\V./․/g
    global /\<fun\> `/ substitute !\V/!⁄!g
+   global /\<fun\> `/ substitute /\V"/“/g
 endfunction "scala2kotlin#Convert_Function_Name
 
 ""
