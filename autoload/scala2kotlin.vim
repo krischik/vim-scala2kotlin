@@ -11,12 +11,34 @@
 "-------------------------------------------------------------------------------
 
 ""
+"   Convert logging TAG
+"
+function! s:Logging()
+    's,'e substitute /classOf<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
+    's,'e substitute /\.getLogManager$/\.getLogManager ()/e
+    's,'e substitute /Init_Logger ()/companion object\r{\rinit\r{\rnet.sourceforge.uiq3.test.Init_Logger()\r}\r}/
+    return   
+endfunction s:Logging()
+
+""
+"   Convert test runner.
+"
+function! s:Runner()
+    's,'e substitute !// @org.junit.runner.RunWith (classOf\s\=<org.scalatest.junit.JUnitRunner>)!@org.junit.jupiter.api.TestInstance(org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS)!
+    return   
+endfunction s:Runner()
+""
 "
 "
 function! scala2kotlin#Convert_BDD_Test()
     1
     /^package\>/ mark s
     /vim: set/   mark e
+
+    global /extends org.scalatest.featurespec.AnyFeatureSpec/ delete
+    global /org.scalatest.GivenWhenThen/ delete
+    global /org.scalatest.matchers.should.Matchers/ delete
+    global /test.Numeric_Utilities/ delete
 
 
     " Add common test libraries.
@@ -36,21 +58,16 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   " Convert logging TAG
-   "
-   's,'e substitute /classOf<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
-   's,'e substitute /\.getLogManager$/\.getLogManager ()/e
-
-   " Convert test runner.
-   "
-   's,'e substitute !// @org.junit.runner.RunWith (classOf<org.scalatest.junit.JUnitRunner>)!@org.junit.jupiter.api.TestInstance(org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS)!
-
+   call s:Logging()
+   call s:Runner()
 
    ""
    " convert Scenarios to functions
    "
-   's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/
-   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/
+   's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/e
+   's,'e substitute /Feature ("\(.\{-}\)")/@org.junit.jupiter.api.Nested\r    inner class `Feature \1`/e
+   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/e
+   's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
 endfunction "scala2kotlin#Convert_BDD_Test
 
 ""
@@ -76,24 +93,34 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   " Convert logging TAG
-   "
-   's,'e substitute /classOf<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
-   's,'e substitute /\.getLogManager$/\.getLogManager ()/e
-   's,'e substitute /Init_Logger ()/companion object\r{\rinit\r{\rnet.sourceforge.uiq3.test.Init_Logger()\r}\r}/
-
-   " Convert test runner.
-   "
-   's,'e substitute !// @org.junit.runner.RunWith (classOf<org.scalatest.junit.JUnitRunner>)!@org.junit.jupiter.api.TestInstance(org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS)!
-
+   call s:Logging()
+   call s:Runner()
 
    ""
-   " convert Scenarios to functions
+   " convert Tests to functions
    "
    's,'e substitute /test ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Test \1` ()/e
    's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, Is (notNullValue()))/e
    's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+
+
+   "" 
+   " make convesions explicit.
+   "
+   's,'e substitute !(\(".\{-}"\) \([-+*/]\) \(".\{-}"\))!ℝ (\1) \2 ℝ (\3)!e
+   
+
 endfunction "scala2kotlin#Convert_Function_Test
+
+
+""
+"   Even with `…` there are two characters which are forbidden. Replace with
+"   unitcode variants.
+"
+function! scala2kotlin#Convert_Function_Name()
+   global /\<fun\> `/ substitute /\V./․/g
+   global /\<fun\> `/ substitute !\V/!⁄!g
+endfunction "scala2kotlin#Convert_Function_Name
 
 ""
 "
@@ -130,12 +157,39 @@ function! scala2kotlin#Convert ()
     's,'e substitute /\<IndexedSeq\s\=</List </e
     's,'e substitute /<:/:/e
     's,'e substitute /\V@inline\>/inline/e
+    's,'e substitute /\<getClass\>/javaClass/e
+    's,'e substitute /classOf<\(\k\{-}\)>/\1::class.java/
+
+
+    " merge multi line package declatations
+    "
+    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2
 
     global /scala.language.implicitConversions/ delete
+    global !// @formatter:off!			delete
+    global !// @formatter:on!			delete
 
     'e,$  substitute /filetype=scala/filetype=kotlin/
 endfunction "scala2kotlin#Convert
 
+   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℝ (\3))!
+   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℚ (\3))!
+   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℚ (\1).\2 (ℚ (\3))!
+   " .substitute !(\(".\{-}"\) \(.\{-}\) \(.\{-}\))!ℚ (\1).\2 (\3)!
+   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℝ (\1).\2(),!
+   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℤ (\1).\2(),!
+   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℚ (\1).\2(),!
+   " .substitute/".\{-}"/ℤ (\0)/
+   " .substitute/".\{-}"/ℚ (\0)/
+   " %substitute /equalTo("\([-+.0-9e]*\)")/equalTo(ℝ("\1"))/
+   " %substitute /equalTo("\([-+0-9e]*\)")/equalTo(ℤ("\1"))/
+   " %substitute !equalTo("\([-+0-9/ ]*\)")!equalTo(ℚ("\1"))!
+   " %substitute /equalTo(("\([-+.0-9e]*\)"))/equalTo(ℝ("\1"))/
+   " %substitute /equalTo(("\([-+0-9]*\)"))/equalTo(ℤ("\1"))/
+   " %substitute !equalTo(("\([-+0-9/ ]*\)"))!equalTo(ℚ("\1"))!
+   "
+   " %substitute / \(.\{-}\) should be ('\(\k\{-}\))/assertThat(\1, hasProperty("\2", equalTo(true)));
+   " %substitute / \(.\{-}\) should not be '\(\k\{-}\)/assertThat(\1, hasProperty("\2", %equalTo(false)));
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
 " vim: set nospell spelllang=en_bg :
