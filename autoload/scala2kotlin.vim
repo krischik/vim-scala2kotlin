@@ -13,12 +13,18 @@
 ""
 "   Convert logging TAG
 "
-function! s:Logging()
-    's,'e substitute /classOf<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
+function! scala2kotlin#Logging()
+    1
+    /^package\>/ mark s
+    /vim: set/   mark e
+
+    's,'e substitute /classOf\s\=\[\(.\{-}\)]\.getName/\1::class.qualifiedName/e
+    's,'e substitute /classOf\s\=<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
+    's,'e substitute /::class.qualifiedName/::class.java.getName()/
     's,'e substitute /\.getLogManager$/\.getLogManager ()/e
     's,'e substitute /Init_Logger ()/companion object\r{\rinit\r{\rnet.sourceforge.uiq3.test.Init_Logger()\r}\r}/
     return   
-endfunction s:Logging()
+endfunction scala2kotlin#Logging()
 
 ""
 "   Convert test runner.
@@ -58,7 +64,7 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   call s:Logging()
+   call scala2kotlin#Logging()
    call s:Runner()
 
    ""
@@ -93,23 +99,23 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   call s:Logging()
-   call s:Runner()
+    call scala2kotlin#Logging()
+    call s:Runner()
 
-   ""
-   " convert Tests to functions
-   "
-   's,'e substitute /test ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Test \1` ()/e
-   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, Is (notNullValue()))/e
-   's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+    ""
+    " convert Tests to functions
+    "
+    's,'e substitute /test ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Test \1` ()/e
+    's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, Is (notNullValue()))/e
+    's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
 
 
-   "" 
-   " make convesions explicit.
-   "
-   's,'e substitute !(\(".\{-}"\) \([-+*/]\) \(".\{-}"\))!ℝ (\1) \2 ℝ (\3)!e
+    "" 
+    " make convesions explicit.
+    "
+    's,'e substitute !(\(".\{-}"\) \([-+*/]\) \(".\{-}"\))!ℝ (\1) \2 ℝ (\3)!e
    
-
+    return
 endfunction "scala2kotlin#Convert_Function_Test
 
 
@@ -131,20 +137,24 @@ function! scala2kotlin#Convert ()
     /^package\>/ mark s
     /vim: set/   mark e
 
-    set filetype=kotlin
-
     's,'e substitute /\v<extends>/:/e
     's,'e substitute /\v<def>/fun/e
+    's,'e substitute /\v<BigInt>/BigInteger/e
     's,'e substitute /\v<BigInt>/BigInteger/e
     's,'e substitute /\v<trait>/interface/e
     's,'e substitute /\V[/</e
     's,'e substitute /\V]/>/e
     's,'e substitute / = {/ {/e
+    "}}
     's,'e substitute /\v<new>/ /e
     's,'e substitute /\<Future\s\=</CompletableFuture </e
     's,'e substitute /\<Promise\s\=</CompletableFuture </e
-    's,'e substitute /\<Array\s\=<Byte>(/ ByteArray(/e
-    's,'e substitute /\<Array\s\=<Char>(/ CharArray(/e
+    's,'e substitute /\<Array\s\=<Boolean>/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Boolean]/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Short]/ShortArray/e
+    's,'e substitute /\<Array\s\=<Short>/ShortArray/e
+    's,'e substitute /\<Array\s\=<Byte>/ByteArray/e
+    's,'e substitute /\<Array\s\=<Char>/CharArray/e
     's,'e substitute /\v<with>/,/e
     's,'e substitute /\v<match>/when/e
     's,'e substitute /case class/data class/e
@@ -153,44 +163,48 @@ function! scala2kotlin#Convert ()
     's,'e substitute /=>/->/e
     's,'e substitute /.asInstanceOf</ as ") /e
     's,'e substitute /\v<final>//e
-    's,'e substitute /fun this(/constructor(/e
     's,'e substitute /\<Seq\s\=</List </e
     's,'e substitute /\<IndexedSeq\s\=</List </e
     's,'e substitute /<:/:/e
     's,'e substitute /\V@inline\>/inline/e
     's,'e substitute /\<getClass\>/javaClass/e
-    's,'e substitute /classOf<\(\k\{-}\)>/\1::class.java/
+    's,'e substitute /classOf\s\=<\(\k\{-}\)>/\1::class.java/e
+    's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
+    's,'e substitute /private\s\=<\i\{-}>/private/e
 
+    " converrt potential constucters
+    "
+    's,'e substitute /fun this\s\=(/constructor(/e
+    's,'e substitute /fun apply\s\=(/constructor(/e
+    "))))
+
+    's,'e substitute /wait/(this as Object).wait/e
+    's,'e substitute /this synchronized/synchronized(this)/e
 
     " merge multi line package declatations
     "
-    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2
+    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2/e
 
+    " I use Retval for all return values which makes stuff a little easier
+    "
+    's,'e substitute /^\s*Retval$/return Retval/e
+
+    " Change catch from try catch.
+    "
+    's,'e substitute /\c\(exception\): \(.\{-}\) ->/catch (\1: \2)/e
+
+    " Obsosolete stuff
+    "
     global /scala.language.implicitConversions/ delete
     global !// @formatter:off!			delete
     global !// @formatter:on!			delete
 
+    " change filetype 
+    "
     'e,$  substitute /filetype=scala/filetype=kotlin/
+    set filetype=kotlin
 endfunction "scala2kotlin#Convert
 
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℝ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℚ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℚ (\1).\2 (ℚ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(.\{-}\))!ℚ (\1).\2 (\3)!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℝ (\1).\2(),!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℤ (\1).\2(),!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℚ (\1).\2(),!
-   " .substitute/".\{-}"/ℤ (\0)/
-   " .substitute/".\{-}"/ℚ (\0)/
-   " %substitute /equalTo("\([-+.0-9e]*\)")/equalTo(ℝ("\1"))/
-   " %substitute /equalTo("\([-+0-9e]*\)")/equalTo(ℤ("\1"))/
-   " %substitute !equalTo("\([-+0-9/ ]*\)")!equalTo(ℚ("\1"))!
-   " %substitute /equalTo(("\([-+.0-9e]*\)"))/equalTo(ℝ("\1"))/
-   " %substitute /equalTo(("\([-+0-9]*\)"))/equalTo(ℤ("\1"))/
-   " %substitute !equalTo(("\([-+0-9/ ]*\)"))!equalTo(ℚ("\1"))!
-   "
-   " %substitute / \(.\{-}\) should be ('\(\k\{-}\))/assertThat(\1, hasProperty("\2", equalTo(true)));
-   " %substitute / \(.\{-}\) should not be '\(\k\{-}\)/assertThat(\1, hasProperty("\2", %equalTo(false)));
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
 " vim: set nospell spelllang=en_bg :

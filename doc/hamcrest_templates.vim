@@ -31,6 +31,7 @@
 . substitute / \(.\{-}\) should be ('\(\k\{-}\))/assertThat(\1, hasProperty("\2", equalTo(true)))/
 . substitute / \(.\{-}\) should not be '\(\k\{-}\)/assertThat(\1, hasProperty("\2", %equalTo(false)))/
 
+
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
 " vim: set nospell spelllang=en_bg :
