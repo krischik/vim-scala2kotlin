@@ -33,16 +33,30 @@ function! s:Runner()
     's,'e substitute !// @org.junit.runner.RunWith (classOf\s\=<org.scalatest.junit.JUnitRunner>)!@org.junit.jupiter.api.TestInstance(org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS)!
     return   
 endfunction s:Runner()
+
+function! s:Tagged_Scenario(Name, Tags)
+    let l:Retval = "@org.junit.jupiter.api.Test\r"
+
+    for l:Tag in a:Tags->split(",")
+	let l:Retval = l:Retval . '@org.junit.jupiter.api.Tag("' . l:Tag->trim() . '")' . "\r"
+    endfor
+
+    let l:Retval = l:Retval . "fun `Scenario " . a:Name . "` ()"
+
+    return l:Retval
+endfunction "Tagged_Scenario
+
 ""
-"
+"   Replace buisniess drivend development tests
 "
 function! scala2kotlin#Convert_BDD_Test()
     1
     /^package\>/ mark s
     /vim: set/   mark e
 
-    global /extends org.scalatest.featurespec.AnyFeatureSpec/ delete
+    global /org.scalatest.featurespec.AnyFeatureSpec/ delete
     global /org.scalatest.GivenWhenThen/ delete
+    global /org.scalatest.matchers.should.Matchers/ delete
     global /org.scalatest.matchers.should.Matchers/ delete
     global /test.Numeric_Utilities/ delete
 
@@ -64,16 +78,20 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   call scala2kotlin#Logging()
-   call s:Runner()
+    call scala2kotlin#Logging()
+    call s:Runner()
 
-   ""
-   " convert Scenarios to functions
-   "
-   's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/e
-   's,'e substitute /Feature ("\(.\{-}\)")/@org.junit.jupiter.api.Nested\r    inner class `Feature \1`/e
-   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/e
-   's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+    " convert Scenarios to functions
+    "
+    's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/e
+    's,'e substitute /Scenario ("\(.\{-}\)",\(.\{-}\))/\= s:Tagged_Scenario(submatch(1),submatch(2)) /e
+    's,'e substitute /Feature ("\(.\{-}\)")/@org.junit.jupiter.api.Nested\r    inner class `Feature \1`/e
+
+
+    " convert assertions
+    "
+    's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/e
+    's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
 endfunction "scala2kotlin#Convert_BDD_Test
 
 ""
@@ -178,7 +196,7 @@ function! scala2kotlin#Convert ()
     's,'e substitute /fun apply\s\=(/constructor(/e
     "))))
 
-    's,'e substitute /wait/(this as Object).wait/e
+    's,'e substitute /this wait/(this as Object).wait/e
     's,'e substitute /this synchronized/synchronized(this)/e
 
     " merge multi line package declatations
@@ -193,6 +211,14 @@ function! scala2kotlin#Convert ()
     "
     's,'e substitute /\c\(exception\): \(.\{-}\) ->/catch (\1: \2)/e
 
+    " raw strings.
+    "
+    's,'e substitute /raw"\(.\{-}\)"/"""\1"""/
+
+    " Array to string
+    "
+    's,'e substitute /\Vdeep.toString ()/contentToString ()/
+
     " Obsosolete stuff
     "
     global /scala.language.implicitConversions/ delete
@@ -204,6 +230,25 @@ function! scala2kotlin#Convert ()
     'e,$  substitute /filetype=scala/filetype=kotlin/
     set filetype=kotlin
 endfunction "scala2kotlin#Convert
+
+""
+"   Convert a list literal. 
+"
+function! scala2kotlin#List_Litereal () range
+    "	Replace :: with ,
+    "
+    execute a:firstline . "," . a:lastline " substitute /::/,/ge"
+
+    " remove Nil
+    execute a:lastline . ' substitute /\\(,\\|\\)\\s\\=Nil/)/e'
+
+    "  begin list with listOf (
+    "
+    execute a:firstline
+    insert
+listOf (
+.
+endfunction ")scala2kotlin#List_Litereal
 
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :

@@ -32,6 +32,11 @@
 . substitute / \(.\{-}\) should not be '\(\k\{-}\)/assertThat(\1, hasProperty("\2", %equalTo(false)))/
 
 
+. substitute /info (\(".\{-}"\))/init {\rInfo (\1)\r}/
+
+% substitute !\Vjava.io.File("src/test/\(\.\{-}\)",\s\=\(net.sourceforge.uiq3.fa2.Files.\.\{-}\).Java_Filename)!\2.As_Absolute_Path("\1")
+
+
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
 " vim: set nospell spelllang=en_bg :
