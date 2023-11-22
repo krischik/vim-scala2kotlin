@@ -13,12 +13,18 @@
 ""
 "   Convert logging TAG
 "
-function! s:Logging()
-    's,'e substitute /classOf<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
+function! scala2kotlin#Logging()
+    1
+    /^package\>/ mark s
+    /vim: set/   mark e
+
+    's,'e substitute /classOf\s\=\[\(.\{-}\)]\.getName/\1::class.qualifiedName/e
+    's,'e substitute /classOf\s\=<\(.\{-}\)>\.getName/\1::class.qualifiedName/e
+    's,'e substitute /::class.qualifiedName/::class.java.getName()/e
     's,'e substitute /\.getLogManager$/\.getLogManager ()/e
     's,'e substitute /Init_Logger ()/companion object\r{\rinit\r{\rnet.sourceforge.uiq3.test.Init_Logger()\r}\r}/
     return   
-endfunction s:Logging()
+endfunction scala2kotlin#Logging()
 
 ""
 "   Convert test runner.
@@ -27,16 +33,43 @@ function! s:Runner()
     's,'e substitute !// @org.junit.runner.RunWith (classOf\s\=<org.scalatest.junit.JUnitRunner>)!@org.junit.jupiter.api.TestInstance(org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS)!
     return   
 endfunction s:Runner()
+
+function! s:Tagged_Scenario(Name, Tags)
+    let l:Retval = "@org.junit.jupiter.api.Test\r"
+
+    for l:Tag in a:Tags->split(",")
+	let l:Retval = l:Retval . '@org.junit.jupiter.api.Tag("' . l:Tag->trim() . '")' . "\r"
+    endfor
+
+    let l:Retval = l:Retval . "fun `Scenario " . a:Name . "` ()"
+
+    return l:Retval
+endfunction "Tagged_Scenario
+
+function! s:Expand_Import(Package, Imports)
+    let l:Retval = ""
+
+    for l:Import in a:Imports->split(",")
+	let l:Retval = l:Retval . "import " . a:Package . "." . l:Import->trim() . "\r"
+    endfor
+
+    return l:Retval
+endfunction "Expand_Import
+
+
 ""
-"
+"   Replace buisniess drivend development tests
 "
 function! scala2kotlin#Convert_BDD_Test()
+    call scala2kotlin#Convert ()
+
     1
     /^package\>/ mark s
     /vim: set/   mark e
 
-    global /extends org.scalatest.featurespec.AnyFeatureSpec/ delete
+    global /org.scalatest.featurespec.AnyFeatureSpec/ delete
     global /org.scalatest.GivenWhenThen/ delete
+    global /org.scalatest.matchers.should.Matchers/ delete
     global /org.scalatest.matchers.should.Matchers/ delete
     global /test.Numeric_Utilities/ delete
 
@@ -55,19 +88,24 @@ import org.hamcrest.core.IsNull.notNullValue
 import org.hamcrest.core.IsNull.nullValue
 import org.hamcrest.core.IsEqual.equalTo
 import org.hamcrest.MatcherAssert.assertThat
-import org.junit.jupiter.api.Test
 .
 
-   call s:Logging()
-   call s:Runner()
+    " convert Scenarios to functions
+    "
+    's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/e
+    's,'e substitute /Scenario ("\(.\{-}\)",\(.\{-}\))/\= s:Tagged_Scenario(submatch(1),submatch(2)) /e
+    's,'e substitute /Feature ("\(.\{-}\)")/@org.junit.jupiter.api.Nested\r    inner class `Feature \1`/e
 
-   ""
-   " convert Scenarios to functions
-   "
-   's,'e substitute /Scenario ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Scenario \1` ()/e
-   's,'e substitute /Feature ("\(.\{-}\)")/@org.junit.jupiter.api.Nested\r    inner class `Feature \1`/e
-   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/e
-   's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+
+    " convert assertions
+    "
+    's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, `is`(notNullValue()))/e
+    's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo \2)/e
+
+    call scala2kotlin#Logging()
+    call scala2kotlin#Convert_Function_Name()
+    call s:Runner()
+    return
 endfunction "scala2kotlin#Convert_BDD_Test
 
 ""
@@ -93,23 +131,23 @@ import org.hamcrest.MatcherAssert.assertThat
 import org.junit.jupiter.api.Test
 .
 
-   call s:Logging()
-   call s:Runner()
+    call scala2kotlin#Logging()
+    call s:Runner()
 
-   ""
-   " convert Tests to functions
-   "
-   's,'e substitute /test ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Test \1` ()/e
-   's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, Is (notNullValue()))/e
-   's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+    ""
+    " convert Tests to functions
+    "
+    's,'e substitute /test ("\(.\{-}\)")/@org.junit.jupiter.api.Test\r    fun `Test \1` ()/e
+    's,'e substitute /\<\(.\{-}\)\> should not be null/assertThat(\1, Is (notNullValue()))/e
+    's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo (\2))/e
+    's,'e substitute /\(.\{-}\) should have length \(.\{-}\)/assertThat(\1, aFileWithSize(\2));
 
-
-   "" 
-   " make convesions explicit.
-   "
-   's,'e substitute !(\(".\{-}"\) \([-+*/]\) \(".\{-}"\))!ℝ (\1) \2 ℝ (\3)!e
+    "" 
+    " make convesions explicit.
+    "
+    's,'e substitute !(\(".\{-}"\) \([-+*/]\) \(".\{-}"\))!ℝ (\1) \2 ℝ (\3)!e
    
-
+    return
 endfunction "scala2kotlin#Convert_Function_Test
 
 
@@ -118,9 +156,14 @@ endfunction "scala2kotlin#Convert_Function_Test
 "   unitcode variants.
 "
 function! scala2kotlin#Convert_Function_Name()
-   global /\<fun\> `/ substitute /\V./․/g
-   global /\<fun\> `/ substitute !\V/!⁄!g
-   global /\<fun\> `/ substitute /\V"/“/g
+   global /\<fun\> `/ substitute /\V./․/ge
+   global /\<fun\> `/ substitute !\V/!⁄!ge
+   global /\<fun\> `/ substitute /\V"/“/ge
+   global /\<fun\> `/ substitute /\V:/¦/ge
+   global /\<fun\> `/ substitute /\V*/×/ge
+   global /\<fun\> `/ substitute /\V>/≫/ge
+   global /\<fun\> `/ substitute /\V</≪/ge
+   global /\<fun\> `/ substitute /\V?/¿/ge
 endfunction "scala2kotlin#Convert_Function_Name
 
 ""
@@ -131,20 +174,24 @@ function! scala2kotlin#Convert ()
     /^package\>/ mark s
     /vim: set/   mark e
 
-    set filetype=kotlin
-
     's,'e substitute /\v<extends>/:/e
     's,'e substitute /\v<def>/fun/e
+    's,'e substitute /\v<BigInt>/BigInteger/e
     's,'e substitute /\v<BigInt>/BigInteger/e
     's,'e substitute /\v<trait>/interface/e
     's,'e substitute /\V[/</e
     's,'e substitute /\V]/>/e
     's,'e substitute / = {/ {/e
+    "}}
     's,'e substitute /\v<new>/ /e
     's,'e substitute /\<Future\s\=</CompletableFuture </e
     's,'e substitute /\<Promise\s\=</CompletableFuture </e
-    's,'e substitute /\<Array\s\=<Byte>(/ ByteArray(/e
-    's,'e substitute /\<Array\s\=<Char>(/ CharArray(/e
+    's,'e substitute /\<Array\s\=<Boolean>/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Boolean]/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Short]/ShortArray/e
+    's,'e substitute /\<Array\s\=<Short>/ShortArray/e
+    's,'e substitute /\<Array\s\=<Byte>/ByteArray/e
+    's,'e substitute /\<Array\s\=<Char>/CharArray/e
     's,'e substitute /\v<with>/,/e
     's,'e substitute /\v<match>/when/e
     's,'e substitute /case class/data class/e
@@ -153,44 +200,99 @@ function! scala2kotlin#Convert ()
     's,'e substitute /=>/->/e
     's,'e substitute /.asInstanceOf</ as ") /e
     's,'e substitute /\v<final>//e
-    's,'e substitute /fun this(/constructor(/e
     's,'e substitute /\<Seq\s\=</List </e
     's,'e substitute /\<IndexedSeq\s\=</List </e
     's,'e substitute /<:/:/e
     's,'e substitute /\V@inline\>/inline/e
     's,'e substitute /\<getClass\>/javaClass/e
-    's,'e substitute /classOf<\(\k\{-}\)>/\1::class.java/
+    's,'e substitute /classOf\s\=<\(\k\{-}\)>/\1::class.java/e
+    's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
+    's,'e substitute /private\s\=<\i\{-}>/private/e
 
+    " converrt potential constucters
+    "
+    's,'e substitute /fun this\s\=(/constructor(/e
+    's,'e substitute /fun apply\s\=(/constructor(/e
+    "))))
+
+    's,'e substitute /this wait/(this as Object).wait/e
+    's,'e substitute /this synchronized/synchronized(this)/e
 
     " merge multi line package declatations
     "
-    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2
+    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2/e
 
-    global /scala.language.implicitConversions/ delete
+    " I use Retval for all return values which makes stuff a little easier
+    "
+    's,'e substitute /^\s*Retval$/return Retval/e
+
+    " Change catch from try catch.
+    "
+    's,'e substitute /\c\(exception\): \(.\{-}\) ->/catch (\1: \2)/e
+
+    " raw strings.
+    "
+    's,'e substitute /raw"\(.\{-}\)"/"""\1"""/e
+
+    " Array to string
+    "
+    's,'e substitute /\Vdeep.toString ()/contentToString ()/e
+
+    " Obsosolete stuff
+    "
     global !// @formatter:off!			delete
     global !// @formatter:on!			delete
+    global /scala.language.implicitConversions/ delete
+    global /scala.language.postfixOps/		delete
 
+    " change filetype 
+    "
     'e,$  substitute /filetype=scala/filetype=kotlin/
+    set filetype=kotlin
 endfunction "scala2kotlin#Convert
 
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℝ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℝ (\1).\2 (ℚ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(".\{-}"\))!ℚ (\1).\2 (ℚ (\3))!
-   " .substitute !(\(".\{-}"\) \(.\{-}\) \(.\{-}\))!ℚ (\1).\2 (\3)!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℝ (\1).\2(),!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℤ (\1).\2(),!
-   " .substitute !\(".\{-}"\)\.\(.\{-}\),!ℚ (\1).\2(),!
-   " .substitute/".\{-}"/ℤ (\0)/
-   " .substitute/".\{-}"/ℚ (\0)/
-   " %substitute /equalTo("\([-+.0-9e]*\)")/equalTo(ℝ("\1"))/
-   " %substitute /equalTo("\([-+0-9e]*\)")/equalTo(ℤ("\1"))/
-   " %substitute !equalTo("\([-+0-9/ ]*\)")!equalTo(ℚ("\1"))!
-   " %substitute /equalTo(("\([-+.0-9e]*\)"))/equalTo(ℝ("\1"))/
-   " %substitute /equalTo(("\([-+0-9]*\)"))/equalTo(ℤ("\1"))/
-   " %substitute !equalTo(("\([-+0-9/ ]*\)"))!equalTo(ℚ("\1"))!
-   "
-   " %substitute / \(.\{-}\) should be ('\(\k\{-}\))/assertThat(\1, hasProperty("\2", equalTo(true)));
-   " %substitute / \(.\{-}\) should not be '\(\k\{-}\)/assertThat(\1, hasProperty("\2", %equalTo(false)));
+""
+"   Convert a list literal. 
+"
+function! scala2kotlin#List_Litereal () range
+    "	Replace :: with ,
+    "
+    execute a:firstline . "," . a:lastline " substitute /:::/+ listOf (/ge"
+    execute a:firstline . "," . a:lastline " substitute /::/,/ge"
+
+    if a:firstline == a:lastline
+	" remove Nil
+	"
+	. substitute /,\s*Nil/)/e
+	"  begin list with listOf (
+	"
+	. substitute /(/(listOf(/e
+    else
+	" remove Nil
+	"
+	execute a:lastline . ' substitute /\(,\|\)\s\=Nil/)/e'
+	execute a:lastline . '-1 substitute /,$//e'
+
+	"  begin list with listOf (
+	"
+	execute a:firstline
+	insert
+	    listOf (
+.
+    endif
+endfunction ")scala2kotlin#Multi_Import
+
+""
+"   Convert a list literal. 
+"
+function! scala2kotlin#Multi_Import () range
+    "	join seletected lines 
+    "
+    execute a:firstline . "," . a:lastline "join"
+
+    substitute /import \(.\{-}\).{\(.\{-}\)}/\= s:Expand_Import (submatch(1),submatch(2)) / 
+endfunction "scala2kotlin#Multi_Import
+
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
-" vim: set nospell spelllang=en_bg :
+" vim: set spell spelllang=en_gb :
