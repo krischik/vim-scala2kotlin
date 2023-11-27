@@ -1,13 +1,15 @@
 "-------------------------------------------------------------------------------
 "  Description: Convert Scala to Koltin
-"  Description: Convert PMWiki to Markdown
 "   Maintainer: Martin Krischik «krischik@users.sourceforge.net»
 "       Author: Martin Krischik «krischik@users.sourceforge.net»
 "    Copyright: Copyright © 2023 Martin Krischik
 " Name Of File: autoload/scala2kotlin.vim
-"      Version: 1.0
+"      Version: 1.3
 "	 Usage: copy to autoloa directory
 "      History: 10.11.2023 MK Initial Release
+"		12.11.2023 MK more illegal characters corrected
+"       	22.11.2023 MK Fixes and additional conversions. Project logo.
+"       	27.11.2023 MK Description
 "-------------------------------------------------------------------------------
 
 ""
@@ -58,7 +60,9 @@ endfunction "Expand_Import
 
 
 ""
-"   Replace buisniess drivend development tests
+"   The `ScalaConvertBDDTest` converts unit test using the `org.scalatest.featurespec.AnyFeatureSpec` and
+"   `org.scalatest.GivenWhenThen` unit test framework. Each feature is converted into a nested class and each scenario
+"   is converted into a method. Again using the back tick notation.
 "
 function! scala2kotlin#Convert_BDD_Test()
     call scala2kotlin#Convert ()
@@ -109,7 +113,8 @@ import org.hamcrest.MatcherAssert.assertThat
 endfunction "scala2kotlin#Convert_BDD_Test
 
 ""
-"
+"   The `ScalaConvertFunctionTest` converts unit test using the `org.scalatest.funsuite.AnyFunSuite` unit test
+"   framework. Each function test is converted into method using the back tick notation for the function name. 
 "
 function! scala2kotlin#Convert_Function_Test()
     1
@@ -153,9 +158,9 @@ endfunction "scala2kotlin#Convert_Function_Test
 
 ""
 "   Even with `…` there are two characters which are forbidden. Replace with
-"   unitcode variants.
+"   Unicode variants.
 "
-function! scala2kotlin#Convert_Function_Name()
+function! scala2kotlin#Replace_Illegal_Method_Character()
    global /\<fun\> `/ substitute /\V./․/ge
    global /\<fun\> `/ substitute !\V/!⁄!ge
    global /\<fun\> `/ substitute /\V"/“/ge
@@ -164,10 +169,19 @@ function! scala2kotlin#Convert_Function_Name()
    global /\<fun\> `/ substitute /\V>/≫/ge
    global /\<fun\> `/ substitute /\V</≪/ge
    global /\<fun\> `/ substitute /\V?/¿/ge
-endfunction "scala2kotlin#Convert_Function_Name
+
+   global /\<class\> `/ substitute /\V./․/ge
+   global /\<class\> `/ substitute !\V/!⁄!ge
+   global /\<class\> `/ substitute /\V"/“/ge
+   global /\<class\> `/ substitute /\V:/¦/ge
+   global /\<class\> `/ substitute /\V*/×/ge
+   global /\<class\> `/ substitute /\V>/≫/ge
+   global /\<class\> `/ substitute /\V</≪/ge
+   global /\<class\> `/ substitute /\V?/¿/ge
+endfunction "scala2kotlin#Replace_Illegal_Method_Character
 
 ""
-"
+" The `ScalaConvert` performs the main conversion part. It converts syntax, data type and some common methods.
 "
 function! scala2kotlin#Convert ()
     1
@@ -209,7 +223,7 @@ function! scala2kotlin#Convert ()
     's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
     's,'e substitute /private\s\=<\i\{-}>/private/e
 
-    " converrt potential constucters
+    " convert potential constructors
     "
     's,'e substitute /fun this\s\=(/constructor(/e
     's,'e substitute /fun apply\s\=(/constructor(/e
@@ -218,7 +232,7 @@ function! scala2kotlin#Convert ()
     's,'e substitute /this wait/(this as Object).wait/e
     's,'e substitute /this synchronized/synchronized(this)/e
 
-    " merge multi line package declatations
+    " merge multi line package declamations
     "
     's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2/e
 
@@ -238,21 +252,22 @@ function! scala2kotlin#Convert ()
     "
     's,'e substitute /\Vdeep.toString ()/contentToString ()/e
 
-    " Obsosolete stuff
+    " Obsolete stuff
     "
     global !// @formatter:off!			delete
     global !// @formatter:on!			delete
     global /scala.language.implicitConversions/ delete
     global /scala.language.postfixOps/		delete
 
-    " change filetype 
+    " change file type 
     "
-    'e,$  substitute /filetype=scala/filetype=kotlin/
+    'e,$  substitute /filetype=scala/filetype=kotlin/e
     set filetype=kotlin
 endfunction "scala2kotlin#Convert
 
 ""
-"   Convert a list literal. 
+"   Scala lists use `::` and `:::` as concatenate command and `Nil` to represent literals of lists. The command replaces
+"   the literal with a call to the `listOf` method. Select the literal to convert before calling the command.
 "
 function! scala2kotlin#List_Litereal () range
     "	Replace :: with ,
@@ -267,6 +282,7 @@ function! scala2kotlin#List_Litereal () range
 	"  begin list with listOf (
 	"
 	. substitute /(/(listOf(/e
+	")))
     else
 	" remove Nil
 	"
@@ -279,11 +295,13 @@ function! scala2kotlin#List_Litereal () range
 	insert
 	    listOf (
 .
+	")
     endif
-endfunction ")scala2kotlin#Multi_Import
+endfunction "scala2kotlin#List_Litereal
 
 ""
-"   Convert a list literal. 
+"   Scala allows multiple imports with one import statement using `{…}` notation. This command will replace them with
+"   separate imports. Select the import to convert before calling the command.
 "
 function! scala2kotlin#Multi_Import () range
     "	join seletected lines 
