@@ -1,2 +1,5 @@
-# vim-scala2kotlin
-Convert Scala source code to Kotlin source code. Including unit test.
+# Scala to Kotlin Converter
+
+![Scala to Kotlin Converter](Pictures/Project_logo.png)
+
+Convert Scala source code to Kotlin source code. Optimized for unit test.
