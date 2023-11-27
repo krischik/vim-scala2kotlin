@@ -264,7 +264,8 @@ function! scala2kotlin#Convert ()
 endfunction "scala2kotlin#Convert
 
 ""
-"   Convert a list literal. 
+"   Scala lists use `::` and `:::` as concatenate command and `Nil` to represent literals of lists. The command replaces
+"   the literal with a call to the `listOf` method. Select the literal to convert before calling the command.
 "
 function! scala2kotlin#List_Litereal () range
     "	Replace :: with ,
@@ -279,6 +280,7 @@ function! scala2kotlin#List_Litereal () range
 	"  begin list with listOf (
 	"
 	. substitute /(/(listOf(/e
+	")))
     else
 	" remove Nil
 	"
@@ -291,11 +293,13 @@ function! scala2kotlin#List_Litereal () range
 	insert
 	    listOf (
 .
+	")
     endif
-endfunction ")scala2kotlin#Multi_Import
+endfunction "scala2kotlin#List_Litereal
 
 ""
-"   Convert a list literal. 
+"   Scala allows multiple imports with one import statement using `{…}` notation. This command will replace them with
+"   separate imports. Select the import to convert before calling the command.
 "
 function! scala2kotlin#Multi_Import () range
     "	join seletected lines 

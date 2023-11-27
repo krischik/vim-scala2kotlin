@@ -16,6 +16,7 @@ command		ScalaConvertLogging	    	:call scala2kotlin#Logging()
 command		ScalaReplaceIllegalCharacters   :call scala2kotlin#Replace_Illegal_Method_Character()
 command 	ScalaNumInteger		    	:.substitute /\v(".{-}") (.{-}) (".{-}")/ℤ (\1).\2(ℤ (\3))/
 command -range	ScalaConvertListLitereal    	:<line1>,<line2> call scala2kotlin#List_Litereal()
+command -range	ScalaConvertMultiImport   	:<line1>,<line2> call scala2kotlin#Multi_Import()
 
 50amenu Plugin.Convert.Scala\ Convert<tab>ScalaConvert						:ScalaConvert<CR>
 50amenu Plugin.Convert.Scala\ Convert\ BDD\ Test<tab>ScalaConvertBDDTest			:ScalaConvertBDDTest<CR>
@@ -24,6 +25,7 @@ command -range	ScalaConvertListLitereal    	:<line1>,<line2> call scala2kotlin#L
 50amenu Plugin.Convert.Scala\ Replace\ Illegal\ Characters<tab>ScalaReplaceIllegalCharacters	:ScalaReplaceIllegalCharacters<CR>
 
 vmap <F13>l :ScalaConvertListLitereal<CR>
+vmap <F13>m :ScalaConvertMultiImport<CR>
 
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
