@@ -25,6 +25,8 @@ function! scala2kotlin#Logging()
     's,'e substitute /::class.qualifiedName/::class.java.getName()/e
     's,'e substitute /\.getLogManager$/\.getLogManager ()/e
     's,'e substitute /Init_Logger ()/companion object\r{\rinit\r{\rnet.sourceforge.uiq3.test.Init_Logger()\r}\r}/
+    's,'e g /\V[lL]ogger.log (\$/ join
+    ")
     return   
 endfunction scala2kotlin#Logging()
 
@@ -107,7 +109,7 @@ import org.hamcrest.MatcherAssert.assertThat
     's,'e substitute /^\(.*\) should equal \(.*\)$/assertThat(\1, equalTo \2)/e
 
     call scala2kotlin#Logging()
-    call scala2kotlin#Convert_Function_Name()
+    call scala2kotlin#Replace_Illegal_Method_Character()
     call s:Runner()
     return
 endfunction "scala2kotlin#Convert_BDD_Test
@@ -206,7 +208,6 @@ function! scala2kotlin#Convert ()
     's,'e substitute /\<Array\s\=<Short>/ShortArray/e
     's,'e substitute /\<Array\s\=<Byte>/ByteArray/e
     's,'e substitute /\<Array\s\=<Char>/CharArray/e
-    's,'e substitute /\v<with>/,/e
     's,'e substitute /\v<match>/when/e
     's,'e substitute /case class/data class/e
     's,'e substitute /case _/else/e
@@ -222,6 +223,10 @@ function! scala2kotlin#Convert ()
     's,'e substitute /classOf\s\=<\(\k\{-}\)>/\1::class.java/e
     's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
     's,'e substitute /private\s\=<\i\{-}>/private/e
+
+    " convert for
+    "
+    's,'e substitute /fun this\s\=(/constructor(/e
 
     " convert potential constructors
     "
@@ -252,7 +257,11 @@ function! scala2kotlin#Convert ()
     "
     's,'e substitute /\Vdeep.toString ()/contentToString ()/e
 
-    " Obsolete stuff
+    " don't replace the with in the whole files as it is used in strings and comments as well
+    "
+    's,/class/+5 substitute /\v<with>/,/e
+
+    " remove obsolete stuff
     "
     global !// @formatter:off!			delete
     global !// @formatter:on!			delete
@@ -270,10 +279,14 @@ endfunction "scala2kotlin#Convert
 "   the literal with a call to the `listOf` method. Select the literal to convert before calling the command.
 "
 function! scala2kotlin#List_Litereal () range
+    execute  a:firstline . " mark s"
+    execute  a:lastline  . " mark e"
+
     "	Replace :: with ,
     "
-    execute a:firstline . "," . a:lastline " substitute /:::/+ listOf (/ge"
-    execute a:firstline . "," . a:lastline " substitute /::/,/ge"
+    's,'e  substitute /:::/+ listOf (/ge
+    's,'e  substitute /::/,/ge
+    ")
 
     if a:firstline == a:lastline
 	" remove Nil
@@ -304,12 +317,62 @@ endfunction "scala2kotlin#List_Litereal
 "   separate imports. Select the import to convert before calling the command.
 "
 function! scala2kotlin#Multi_Import () range
-    "	join seletected lines 
-    "
-    execute a:firstline . "," . a:lastline "join"
+    execute  a:firstline . " mark s"
+    execute  a:lastline  . " mark e"
 
-    substitute /import \(.\{-}\).{\(.\{-}\)}/\= s:Expand_Import (submatch(1),submatch(2)) / 
+    "	join selected lines 
+    "
+    's,'e join
+
+    . substitute /import \(.\{-}\).{\(.\{-}\)}/\= s:Expand_Import (submatch(1),submatch(2)) / 
 endfunction "scala2kotlin#Multi_Import
+
+""
+"   Scala allows multiple imports with one import statement using `{…}` notation. This command will replace them with
+"   separate imports. Select the import to convert before calling the command.
+"
+function! scala2kotlin#Lamda () range
+    execute  a:firstline . " mark s"
+    execute  a:lastline  . " mark e"
+
+    "	join selected lines 
+    "
+    's,'s substitute /() ->/{/
+    's,'e substitute /.*\zs,/},/
+
+endfunction "scala2kotlin#Lamda
+
+""
+"   Converts calls to logger to Info calls
+"
+function! scala2kotlin#Log_To_InfoMulti_Import () range
+    execute  a:firstline . " mark s"
+    execute  a:lastline  . " mark e"
+
+    "	join selected lines 
+    "
+    's,'e join
+
+    . substitute /logger.log\s\=(\s\=logging.Level.FINE, \(".\{-}"\), \(.\{-}\))/Info (\1 + \2)/
+    . substitute /{0}//e
+endfunction "scala2kotlin#Log_To_InfoMulti_Import
+
+""
+"   surrounds info calls for features with init()
+"
+function! scala2kotlin#Feature_Info () range
+    execute  a:firstline . "mark s"
+    execute  a:lastline  . "mark e"
+
+    if a:firstline == a:lastline
+	. substitute /info (\(".\{-}"\))/init {\rInfo (\1)\r}/
+    else
+	's,'s	substitute /info ("/init {\rInfo ("""/
+	's+2,'e substitute /^\s*info ("//
+	's,'e-1 substitute /")$//
+	'e,'e	substitute /")$/""")\r}/
+    endif
+endfunction "scala2kotlin#Log_To_InfoMulti_Import
 
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
