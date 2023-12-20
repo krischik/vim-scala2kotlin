@@ -36,23 +36,44 @@
 . substitute / \(.\{-}\) should be (\(.\{-}\))/assertThat(\1, equalTo(\2))/
 . substitute / \(.\{-}\) should fullyMatch regex (\(.\{-}\))/assertThat(\1, matchesPattern(\2))/
 . substitute /assertThat(\s*\(.\{-}\).javaClass, equalTo (\(.\{-}\)::class.java))/assertThat(\1, instanceOf(\2::class.java))/
-. substitute /an <\(.\{-}\)> should be thrownBy \(.\{-}\)$/assertThrows<\1>({ \2 }) 
+. substitute /an\s\=<\(.\{-}\)>\s\=should be thrownBy \(.\{-}\)$/assertThrows(\1::class.java, { \2 }) 
+. substitute /an\s\=\[\(.\{-}\)]\s\=should be thrownBy \(.\{-}\)$/assertThrows(\1::class.java, { \2 }) 
 
 
 . substitute /\<\(.\{-}\)\> synchronized/synchronized(\1)/e
 
-. substitute /info (\(".\{-}"\))/init {\rInfo (\1)\r}/
-
-% substitute !\Vjava.io.File("src/test/\(\.\{-}\)",\s\=\(net.sourceforge.uiq3.fa2.Files.\.\{-}\).Java_Filename)!\2.As_Absolute_Path("\1")
-
-. substitute /logger.log\s\=(logging.Level.FINE, \(".\{-}"\), \(.\{-}\))/Info (\1 + \2)/
+% substitute !\Vjava.io.File("src/test/\(\.\{-}\)",\s\=\(net.sourceforge.uiq3.fa2.Files.\.\{-}\).Java_Filename)!\2.As_Absolute_Path("\1")!
+% substitute !\Vjava.io.File("src/test/\(\.\{-}\)",\s\=\(net.sourceforge.uiq3.fa6.Files.\.\{-}\).Binary_Filename)!\2.Binary_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/\(\.\{-}\)",\s\=\(net.sourceforge.uiq3.fa6.Files.\.\{-}\).Text_Filename)!\2.Text_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/T603-0.af")!net.sourceforge.uiq3.fa6.Files.Calculator_0.Binary_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/T603-T.af")!net.sourceforge.uiq3.fa6.Files.Tape.Binary_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/T603-T.at")!net.sourceforge.uiq3.fa6.Files.Tape.Text_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/T603-P.at")!net.sourceforge.uiq3.fa6.Files.Printer.Text_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/Token.pt")!net.sourceforge.uiq3.fa6.Files.Printer.Text_As_Absolute_Path()!
+% substitute !\Vjava.io.File("src/test/FX-603P/Count.pt")!net.sourceforge.uiq3.fa6.Files.Printer.Text_As_Absolute_Path()!
 
 %s/Display_Text (0)/Display_Text [0]/
-%s/Form.Indicators (\(".\{-}"\))/Form.Indicators [\1]/
+%s/Form.Display_Text (\(.\{-}\))/Form.Display_Text [\1]/
+%s/Form.Indicators (\(.\{-}\))/Form.Indicators [\1]/
 
 global /=$/ join
 
 /::/,/Nil)/ ScalaConvertListLitereal
+
+" use when `with` statements have been accidentally been removed. Normal source has no , with spaces on both sides.
+"
+% substitute / , / with /gc
+
+
+% substitute /\sui\./ net.sourceforge.uiq3.fx603p.ui./g
+% substitute /\sfx603p\./ net.sourceforge.uiq3.fx603p./g
+% substitute /\sfa6\./ net.sourceforge.uiq3.fa6./g
+
+" Replace log with Info
+"
+% substitute /logger.log\s\=(\s\=java.util.logging.Level.FINE, "\(.\{-}\)",/Info ("\1" + /
+% substitute /logger.log\s\=(\s\=logging.Level.FINE, "\(.\{-}\)",/Info ("\1" + /
+
 
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :
