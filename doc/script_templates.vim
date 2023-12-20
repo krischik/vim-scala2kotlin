@@ -4,12 +4,13 @@
 "       Author: Martin Krischik «krischik@users.sourceforge.net»
 "    Copyright: Copyright © 2023 Martin Krischik
 " Name Of File: doc/scala2kotlin.vim
-"      Version: 1.3
-"	 Usage: copy to autoloa directory
+"      Version: 1.4
+"	 Usage: Use as copy paste templates. 
 "      History: 10.11.2023 MK Initial Release
 "		12.11.2023 MK more illegal characters corrected
 "       	22.11.2023 MK Fixes and additional conversions. Project logo.
 "       	27.11.2023 MK Description
+"       	20.12.2023 MK ScalaScript to KotlinScript converter
 "-------------------------------------------------------------------------------
 
 " One line copy/paste helper for aid converting ScalaScript.
