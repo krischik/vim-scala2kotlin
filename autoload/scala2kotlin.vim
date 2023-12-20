@@ -48,7 +48,7 @@ function! s:Tagged_Scenario(Name, Tags)
     let l:Retval = l:Retval . "fun `Scenario " . a:Name . "` ()"
 
     return l:Retval
-endfunction "Tagged_Scenario
+endfunction "s:Tagged_Scenario
 
 function! s:Expand_Import(Package, Imports)
     let l:Retval = ""
@@ -58,8 +58,80 @@ function! s:Expand_Import(Package, Imports)
     endfor
 
     return l:Retval
-endfunction "Expand_Import
+endfunction "s:Expand_Import
 
+function! s:Convert ()
+    's,'e substitute /\v<extends>/:/e
+    's,'e substitute /\v<def>/fun/e
+    's,'e substitute /\v<BigInt>/BigInteger/e
+    's,'e substitute /\v<BigInt>/BigInteger/e
+    's,'e substitute /\v<trait>/interface/e
+"   's,'e substitute /\V[/</e
+"   's,'e substitute /\V]/>/e
+    's,'e substitute / = {/ {/e
+    "}}
+    's,'e substitute /\v<new>/ /e
+    's,'e substitute /\<Future\s\=</CompletableFuture </e
+    's,'e substitute /\<Promise\s\=</CompletableFuture </e
+    's,'e substitute /\<Array\s\=<Boolean>/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Boolean]/BooleanArray/e
+    's,'e substitute /\<Array\s\=\[Short]/ShortArray/e
+    's,'e substitute /\<Array\s\=<Short>/ShortArray/e
+    's,'e substitute /\<Array\s\=<Byte>/ByteArray/e
+    's,'e substitute /\<Array\s\=<Char>/CharArray/e
+    's,'e substitute /\v<match>/when/e
+    's,'e substitute /case class/data class/e
+    's,'e substitute /case _/else/e
+    's,'e substitute /case //e
+    's,'e substitute /=>/->/e
+    's,'e substitute /.asInstanceOf</ as ") /e
+    's,'e substitute /\v<final>//e
+    's,'e substitute /\<Seq\s\=</List </e
+    's,'e substitute /\<IndexedSeq\s\=</List </e
+    's,'e substitute /<:/:/e
+    's,'e substitute /\V@inline\>/inline/e
+    's,'e substitute /\<getClass\>/javaClass/e
+    's,'e substitute /classOf\s\=<\(\k\{-}\)>/\1::class.java/e
+    's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
+    's,'e substitute /private\s\=<\i\{-}>/private/e
+
+    " convert for
+    "
+    's,'e substitute /for (\(.\{-}\) <- \(.\{-}\) to \(.\{-}\))/ for (\1 in \2 .. \3)/e
+
+    " convert potential constructors
+    "
+    's,'e substitute /fun this\s\=(/constructor(/e
+    's,'e substitute /fun apply\s\=(/constructor(/e
+    "))))
+
+    's,'e substitute /this wait/(this as Object).wait/e
+    's,'e substitute /this synchronized/synchronized(this)/e
+
+    " merge multi line package declamations
+    "
+    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2/e
+
+    " I use Retval for all return values which makes stuff a little easier
+    "
+    's,'e substitute /^\s*Retval$/return Retval/e
+
+    " Change catch from try catch.
+    "
+    's,'e substitute /\c\(exception\): \(.\{-}\) ->/catch (\1: \2)/e
+
+    " raw strings.
+    "
+    's,'e substitute /raw"\(.\{-}\)"/"""\1"""/e
+
+    " Array to string
+    "
+    's,'e substitute /\Vdeep.toString ()/contentToString ()/e
+
+    " don't replace the with in the whole files as it is used in strings and comments as well
+    "
+    's,/class/+5 substitute /\v<with>/,/e
+endfunction "s:Convert
 
 ""
 "   The `ScalaConvertBDDTest` converts unit test using the `org.scalatest.featurespec.AnyFeatureSpec` and
@@ -78,7 +150,7 @@ function! scala2kotlin#Convert_BDD_Test()
     global /org.scalatest.matchers.should.Matchers/ delete
     global /org.scalatest.matchers.should.Matchers/ delete
     global /test.Numeric_Utilities/ delete
-
+    
 
     " Add common test libraries.
     "
@@ -164,6 +236,7 @@ endfunction "scala2kotlin#Convert_Function_Test
 "
 function! scala2kotlin#Replace_Illegal_Method_Character()
    global /\<fun\> `/ substitute /\V./․/ge
+   global /\<fun\> `/ substitute /\V;/¦/ge
    global /\<fun\> `/ substitute !\V/!⁄!ge
    global /\<fun\> `/ substitute /\V"/“/ge
    global /\<fun\> `/ substitute /\V:/¦/ge
@@ -171,6 +244,8 @@ function! scala2kotlin#Replace_Illegal_Method_Character()
    global /\<fun\> `/ substitute /\V>/≫/ge
    global /\<fun\> `/ substitute /\V</≪/ge
    global /\<fun\> `/ substitute /\V?/¿/ge
+   global /\<fun\> `/ substitute /\V[/⟦/ge
+   global /\<fun\> `/ substitute /\V]/⟧/ge
 
    global /\<class\> `/ substitute /\V./․/ge
    global /\<class\> `/ substitute !\V/!⁄!ge
@@ -190,76 +265,7 @@ function! scala2kotlin#Convert ()
     /^package\>/ mark s
     /vim: set/   mark e
 
-    's,'e substitute /\v<extends>/:/e
-    's,'e substitute /\v<def>/fun/e
-    's,'e substitute /\v<BigInt>/BigInteger/e
-    's,'e substitute /\v<BigInt>/BigInteger/e
-    's,'e substitute /\v<trait>/interface/e
-    's,'e substitute /\V[/</e
-    's,'e substitute /\V]/>/e
-    's,'e substitute / = {/ {/e
-    "}}
-    's,'e substitute /\v<new>/ /e
-    's,'e substitute /\<Future\s\=</CompletableFuture </e
-    's,'e substitute /\<Promise\s\=</CompletableFuture </e
-    's,'e substitute /\<Array\s\=<Boolean>/BooleanArray/e
-    's,'e substitute /\<Array\s\=\[Boolean]/BooleanArray/e
-    's,'e substitute /\<Array\s\=\[Short]/ShortArray/e
-    's,'e substitute /\<Array\s\=<Short>/ShortArray/e
-    's,'e substitute /\<Array\s\=<Byte>/ByteArray/e
-    's,'e substitute /\<Array\s\=<Char>/CharArray/e
-    's,'e substitute /\v<match>/when/e
-    's,'e substitute /case class/data class/e
-    's,'e substitute /case _/else/e
-    's,'e substitute /case //e
-    's,'e substitute /=>/->/e
-    's,'e substitute /.asInstanceOf</ as ") /e
-    's,'e substitute /\v<final>//e
-    's,'e substitute /\<Seq\s\=</List </e
-    's,'e substitute /\<IndexedSeq\s\=</List </e
-    's,'e substitute /<:/:/e
-    's,'e substitute /\V@inline\>/inline/e
-    's,'e substitute /\<getClass\>/javaClass/e
-    's,'e substitute /classOf\s\=<\(\k\{-}\)>/\1::class.java/e
-    's,'e substitute /classOf\s\=[\(\k\{-}\)]/\1::class.java/e
-    's,'e substitute /private\s\=<\i\{-}>/private/e
-
-    " convert for
-    "
-    's,'e substitute /fun this\s\=(/constructor(/e
-
-    " convert potential constructors
-    "
-    's,'e substitute /fun this\s\=(/constructor(/e
-    's,'e substitute /fun apply\s\=(/constructor(/e
-    "))))
-
-    's,'e substitute /this wait/(this as Object).wait/e
-    's,'e substitute /this synchronized/synchronized(this)/e
-
-    " merge multi line package declamations
-    "
-    's,'s+1 substitute /package \(.*\)\npackage \(.*\)/package \1.\2/e
-
-    " I use Retval for all return values which makes stuff a little easier
-    "
-    's,'e substitute /^\s*Retval$/return Retval/e
-
-    " Change catch from try catch.
-    "
-    's,'e substitute /\c\(exception\): \(.\{-}\) ->/catch (\1: \2)/e
-
-    " raw strings.
-    "
-    's,'e substitute /raw"\(.\{-}\)"/"""\1"""/e
-
-    " Array to string
-    "
-    's,'e substitute /\Vdeep.toString ()/contentToString ()/e
-
-    " don't replace the with in the whole files as it is used in strings and comments as well
-    "
-    's,/class/+5 substitute /\v<with>/,/e
+    call s:Convert ()
 
     " remove obsolete stuff
     "
@@ -273,6 +279,26 @@ function! scala2kotlin#Convert ()
     'e,$  substitute /filetype=scala/filetype=kotlin/e
     set filetype=kotlin
 endfunction "scala2kotlin#Convert
+
+""
+" The `ScalaConvert` performs the main conversion part for Scal. It converts syntax, data type and some common methods.
+"
+function! scala2kotlin#ConvertScript ()
+    1
+    /^import\>/ mark s
+    /vim: set/  mark e
+
+    call s:Convert ()
+
+    's,'e substitute /\[Scala]/[Kotlin]/
+    global /import scala.sys.process._/	delete
+ 
+    " change file type 
+    "
+    'e,$  substitute /filetype=scala/filetype=kotlin/e
+    'e,$  substitute /fileformat=dos/fileformat=unix/e
+    set filetype=kotlin fileformat=unix
+endfunction "scala2kotlin#ConvertScript
 
 ""
 "   Scala lists use `::` and `:::` as concatenate command and `Nil` to represent literals of lists. The command replaces
@@ -345,7 +371,7 @@ endfunction "scala2kotlin#Lamda
 ""
 "   Converts calls to logger to Info calls
 "
-function! scala2kotlin#Log_To_InfoMulti_Import () range
+function! scala2kotlin#Log_To_Info () range
     execute  a:firstline . " mark s"
     execute  a:lastline  . " mark e"
 
@@ -355,7 +381,7 @@ function! scala2kotlin#Log_To_InfoMulti_Import () range
 
     . substitute /logger.log\s\=(\s\=logging.Level.FINE, \(".\{-}"\), \(.\{-}\))/Info (\1 + \2)/
     . substitute /{0}//e
-endfunction "scala2kotlin#Log_To_InfoMulti_Import
+endfunction "scala2kotlin#Log_To_Info
 
 ""
 "   surrounds info calls for features with init()
@@ -372,7 +398,7 @@ function! scala2kotlin#Feature_Info () range
 	's,'e-1 substitute /")$//
 	'e,'e	substitute /")$/""")\r}/
     endif
-endfunction "scala2kotlin#Log_To_InfoMulti_Import
+endfunction "scala2kotlin#Feature_Info
 
 " vim: set textwidth=120 nowrap tabstop=8 shiftwidth=4 softtabstop=4 noexpandtab :
 " vim: set filetype=vim fileencoding=utf8 fileformat=unix foldmethod=marker :

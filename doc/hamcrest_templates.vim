@@ -36,7 +36,8 @@
 . substitute / \(.\{-}\) should be (\(.\{-}\))/assertThat(\1, equalTo(\2))/
 . substitute / \(.\{-}\) should fullyMatch regex (\(.\{-}\))/assertThat(\1, matchesPattern(\2))/
 . substitute /assertThat(\s*\(.\{-}\).javaClass, equalTo (\(.\{-}\)::class.java))/assertThat(\1, instanceOf(\2::class.java))/
-. substitute /an <\(.\{-}\)> should be thrownBy \(.\{-}\)$/assertThrows<\1>({ \2 }) 
+. substitute /an\s\=<\(.\{-}\)>\s\=should be thrownBy \(.\{-}\)$/assertThrows(\1::class.java, { \2 }) 
+. substitute /an\s\=\[\(.\{-}\)]\s\=should be thrownBy \(.\{-}\)$/assertThrows(\1::class.java, { \2 }) 
 
 
 . substitute /\<\(.\{-}\)\> synchronized/synchronized(\1)/e
@@ -52,9 +53,8 @@
 % substitute !\Vjava.io.File("src/test/FX-603P/Count.pt")!net.sourceforge.uiq3.fa6.Files.Printer.Text_As_Absolute_Path()!
 
 %s/Display_Text (0)/Display_Text [0]/
-%s/Display_Text (\(.\{-}\))/Display_Text [\1]/
-%s/MF (\(.\{-}\))/MF [\1]/
-%s/Form.Indicators (\(".\{-}"\))/Form.Indicators [\1]/
+%s/Form.Display_Text (\(.\{-}\))/Form.Display_Text [\1]/
+%s/Form.Indicators (\(.\{-}\))/Form.Indicators [\1]/
 
 global /=$/ join
 
